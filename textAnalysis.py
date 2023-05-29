@@ -1,29 +1,17 @@
-from textblob import TextBlob
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 from collections import Counter
 from nltk.corpus import stopwords
-from scribeFiles import group1_text, group2_text, group3_text, group4_text, group5_text, summary_text
-
-def normalize_sentiment(sentiment_classes):
-    # Calculate the total count of sentiment classes
-    total_count = sum(sentiment_classes.values())
-
-    # Normalize the sentiment class counts
-    normalized_sentiment_classes = {
-        label: count / total_count
-        for label, count in sentiment_classes.items()
-    }
-
-    return normalized_sentiment_classes
+from scribeFiles import summary_text
 
 def visualize_sentiment(text, custom_stopwords=None, figure_names=False):
-    # Create a TextBlob object
-    blob = TextBlob(text)
+    # Create a SentimentIntensityAnalyzer object
+    analyzer = SentimentIntensityAnalyzer()
 
-    # Create lists for sentences and their corresponding sentiment polarity
+    # Create lists for sentences and their corresponding sentiment scores
     sentences = []
-    polarities = []
+    compound_scores = []
     sentiment_classes = {"Positive": 0, "Neutral": 0, "Negative": 0}
     words = []
 
@@ -31,23 +19,23 @@ def visualize_sentiment(text, custom_stopwords=None, figure_names=False):
     stopwords_list = set(stopwords.words('english'))
     if custom_stopwords:
         stopwords_list.update(custom_stopwords)
-        print(stopwords_list)
 
     # Iterate over each sentence in the text
-    for sentence in blob.sentences:
-        sentences.append(str(sentence))
-        sentiment = sentence.sentiment.polarity
-        polarities.append(sentiment)
+    for sentence in text.split('.'):
+        sentences.append(sentence)
+        sentiment = analyzer.polarity_scores(sentence)
+        compound_scores.append(sentiment['compound'])
+        
 
-        if sentiment > 0:
+        if sentiment['compound'] > 0.2:
             sentiment_classes["Positive"] += 1
-        elif sentiment < 0:
+        elif sentiment['compound'] < 0.1:
             sentiment_classes["Negative"] += 1
         else:
             sentiment_classes["Neutral"] += 1
 
         # Collect words for word cloud
-        words.extend([word for word in sentence.words if word not in stopwords_list])
+        words.extend([word for word in sentence.split() if word not in stopwords_list])
 
     # Normalize the sentiment class counts
     normalized_sentiment_classes = normalize_sentiment(sentiment_classes)
@@ -57,21 +45,19 @@ def visualize_sentiment(text, custom_stopwords=None, figure_names=False):
 
     # Plot sentiment polarity
     plt.figure(figsize=(10, 6))
-    plt.plot(polarities)
+    plt.plot(compound_scores)
     plt.xlabel('Sentence index')
     plt.ylabel('Sentiment Polarity')
-    plt.title(f'{figure_names} Raw Note Sentiment Analysis')
-    #if figure_names:
-    #    plt.savefig(f'{figure_names}summary_sentiment_polarity.png')
-    #plt.show()
+    plt.title(f'{figure_names} Summary Sentiment Analysis')
+    
 
     # Plot normalized sentiment classes
     plt.figure(figsize=(10, 6))
     plt.bar(normalized_sentiment_classes.keys(), normalized_sentiment_classes.values(),
             color=[sentiment_colors[key] for key in normalized_sentiment_classes.keys()])
-    plt.title(f'Normalized {figure_names} Raw Note Sentiment Classification')
+    plt.title(f'Normalized {figure_names} Summary Sentiment Classification')
     if figure_names:
-        plt.savefig(f'{figure_names}raw_note_sentiment_classification.png')
+        plt.savefig(f'{figure_names}summary_sentiment_classification.png')
     plt.show()
 
     # Generate and plot word cloud
@@ -89,16 +75,10 @@ def visualize_sentiment(text, custom_stopwords=None, figure_names=False):
         plt.savefig(f'{figure_names}_word_cloud.png')
     plt.show()
     
-    return polarities
+    return compound_scores
 
-group_texts = {'Group1 text': group1_text, 
-               'Group2 text': group2_text, 
-               'Group3 text': group3_text, 
-               'Group4 text': group4_text, 
-               'Group5 text': group5_text}
 
-custom_stopwords =['The', 'Dr', 'This', 'The', '.', 'witt', 'I']
-sent_list = []
-for key, value in group_texts.items():
-    analyzed_text = visualize_sentiment(value, custom_stopwords, figure_names=key)
-    sent_list.append(analyzed_text)
+
+custom_stopwords =['The', 'Dr', 'This', 'The', '.', 'I']
+
+analyzed_text = visualize_sentiment_vader(summary_text, custom_stopwords, figure_names='Summary text')
